@@ -1,0 +1,223 @@
+Program.Sub.ScreenSU.Start
+gui.SS_Form1..create
+gui.SS_Form1..caption("Track Workcenter")
+gui.SS_Form1..size(2340,2325)
+gui.SS_Form1..minx(0)
+gui.SS_Form1..miny(0)
+gui.SS_Form1..position(0,0)
+gui.SS_Form1..event(unload,ss_form1_unload)
+gui.SS_Form1..alwaysontop(False)
+gui.SS_Form1..fontname("Arial")
+gui.SS_Form1..fontsize(8)
+gui.SS_Form1..forecolor(0)
+gui.SS_Form1..fontstyle(,,,,)
+gui.SS_Form1..BackColor(-2147483633)
+gui.SS_Form1..controlbox(True)
+gui.SS_Form1..maxbutton(False)
+gui.SS_Form1..minbutton(False)
+gui.SS_Form1..mousepointer(0)
+gui.SS_Form1..moveable(True)
+gui.SS_Form1..sizeable(False)
+gui.SS_Form1..ShowInTaskBar(True)
+gui.SS_Form1..titlebar(True)
+gui.SS_Form1.chkTrack.create(checkbox)
+gui.SS_Form1.chkTrack.caption("Track Workcenter")
+gui.SS_Form1.chkTrack.visible(True)
+gui.SS_Form1.chkTrack.size(1800,300)
+gui.SS_Form1.chkTrack.zorder(0)
+gui.SS_Form1.chkTrack.position(100,135)
+gui.SS_Form1.chkTrack.enabled(True)
+gui.SS_Form1.chkTrack.alignment(0)
+gui.SS_Form1.chkTrack.fontname("Arial")
+gui.SS_Form1.chkTrack.fontsize(8)
+gui.SS_Form1.chkTrack.defaultvalue("")
+gui.SS_Form1.chkTrack.controlgroup(0)
+gui.SS_Form1.cmdSave.create(button)
+gui.SS_Form1.cmdSave.caption("Save")
+gui.SS_Form1.cmdSave.visible(True)
+gui.SS_Form1.cmdSave.size(1000,360)
+gui.SS_Form1.cmdSave.zorder(0)
+gui.SS_Form1.cmdSave.position(70,1240)
+gui.SS_Form1.cmdSave.enabled(True)
+gui.SS_Form1.cmdSave.fontname("Arial")
+gui.SS_Form1.cmdSave.fontsize(8)
+gui.SS_Form1.cmdSave.event(click,cmdsave_click)
+gui.SS_Form1.cmdSave.defaultvalue("")
+gui.SS_Form1.cmdSave.controlgroup(0)
+gui.SS_Form1.txtHrs.create(textbox,"",True,1740,300,0,100,825,True,0,Arial,8,-2147483643,1)
+gui.SS_Form1.txtHrs.numericonly(1)
+gui.SS_Form1.txtHrs.defaultvalue("")
+gui.SS_Form1.txtHrs.controlgroup(0)
+gui.SS_Form1.lbl1.create(label,"Last Hour Reading",True,1710,255,1,100,605,True,0,Arial,8,-2147483633,0)
+gui.SS_Form1.lbl1.defaultvalue("")
+gui.SS_Form1.lbl1.controlgroup(0)
+gui.SS_Form1.txtHrs.tabstop(True)
+gui.SS_Form1.txtHrs.tabindex(1)
+gui.SS_Form1.cmdSave.tabstop(True)
+gui.SS_Form1.cmdSave.tabindex(2)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.sWC.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Quote 5485
+'coded by TRT
+'for Tycos Tool and Die
+'GAB SCREen that will mark workcenters as ones that should be tracked
+'these wc codes that are going to be tracked will be used when reading on the
+'qui if they need to record start stop time.
+
+'change script text to say Track Hr.s..
+F.Intrinsic.Control.If(V.Caller.Hook,=,14840)
+	V.Passed.000068.Set("Track Hrs...")
+F.Intrinsic.Control.ElseIf(V.Caller.Hook,=,14860)
+	V.Global.sWC.Set(V.Passed.000005)
+	F.Intrinsic.Control.If(V.Global.sWC.TRIM,<>,"")
+		F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+		F.Intrinsic.Control.CallSub(Load)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.UI.Msgbox("Please choose a Workcenter.","No Workcenter Chosen!")
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Else
+
+F.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.Load.Start
+F.Intrinsic.Control.SetErrorHandler("Load_Err")
+F.Intrinsic.Control.ClearErrors
+
+'CHECK OUR TABLE, MAKE SURE IT EXISTS
+'QUERY TABLE FOR MAYB EXISTING WORKCENTER INFORMAITON
+V.Local.sError.Declare(String)
+V.Local.bExists.Declare(Boolean)
+V.Local.sSQL.Declare(String)
+V.Local.iVal.Declare(Long)
+
+F.ODBC.Connection!conx.TableExists("GCG_4117_WC_Trck_Mnt",V.Local.bExists)
+F.Intrinsic.Control.If(V.local.bExists,=,False)
+	F.Intrinsic.UI.Msgbox("GCG_WC_Track_Maint table not found!")
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+F.Intrinsic.Control.Else
+	'query our table based on workcenter code chosen
+	F.Intrinsic.String.Build("Select Flag_Track From GCG_4117_WC_Trck_Mnt Where Machine = '{0}'",V.Global.sWC.Trim,V.Local.sSQL)
+	F.ODBC.Connection!conx.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.conx!rst.EOF,<>,True)
+		F.Intrinsic.Control.If(V.ODBC.conx!rst.FieldValTrim!Flag_Track,=,True)
+			F.Intrinsic.Control.CallSub(Last_hrs)
+			Gui.SS_Form1.chkTrack.Value(1)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.ODBC.conx!rst.close
+	Gui.SS_Form1..Show
+F.Intrinsic.Control.endif
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Load_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Track_Maint.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Load.End
+
+program.sub.cmdsave_click.start
+F.Intrinsic.Control.SetErrorHandler("cmdsave_click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSQL.Declare(String)
+V.Local.iVal.Declare(Long)
+V.Local.iID.Declare(Long)
+V.Local.iHr.Declare(Long)
+V.Local.iHr.Set(V.Screen.SS_Form1!txtHrs.Text)
+
+'save our information to our customer table.
+'query our table based on workcenter code chosen
+F.Intrinsic.String.Build("Select  * From GCG_4117_WC_Trck_Mnt Where Machine = '{0}'",V.Global.sWC.Trim,V.Local.sSQL)
+F.ODBC.Connection!conx.OpenLocalRecordsetRW("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.conx!rst.EOF,=,True)
+	F.ODBC.conx!rst.AddNew
+	f.ODBC.Connection!conx.GetID("GCG_4117_WC_Trck_Mnt","REC_ID",True,v.Local.iID)
+	F.ODBC.conx!rst.Set!REC_ID(V.Local.iID)
+	F.ODBC.conx!rst.Set!Machine(V.Global.sWC.Trim)
+	F.ODBC.conx!rst.Set!HR_Update(V.Local.iHr)
+F.Intrinsic.Control.EndIf
+V.Local.iVal.Set(V.Screen.SS_Form1!chkTrack.Value)
+F.ODBC.conx!rst.Set!Flag_Track(V.Local.iVal)
+F.ODBC.conx!rst.Set!HR_Update(V.Local.iHr)
+F.ODBC.conx!rst.Update
+F.ODBC.conx!rst.Close
+
+F.Intrinsic.Control.CallSub(Ss_form1_unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdsave_click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Track_Maint.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+program.sub.cmdsave_click.end
+
+program.sub.ss_form1_unload.start
+
+F.ODBC.Connection!conx.Close
+
+F.Intrinsic.Control.End
+
+program.sub.ss_form1_unload.end
+
+Program.Sub.Last_Hrs.Start
+F.Intrinsic.Control.SetErrorHandler("Last_Hrs_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+V.Local.sSQL.Declare(String)
+
+F.Intrinsic.String.Build("Select Hr_Update From GCG_4117_WC_Trck_Mnt Where Machine = '{0}'",V.Global.sWC.Trim,V.Local.sSQL)
+F.ODBC.Connection!conx.OpenLocalRecordsetRO("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.conx!rst.EOF,=,False)
+	Gui.SS_Form1.txtHrs.Text(V.ODBC.conx!rst.FieldValTrim!HR_UPDATE)
+F.Intrinsic.Control.EndIf
+F.ODBC.conx!rst.Close
+
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Last_Hrs_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Track_Maint.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Last_Hrs.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_WC_Track_Maint$}$TRT$}$4/27/2014
+${$3$}$0$}$$}$-1$}$-1$}$$}$1/1/1900$}$Quote 5485
+
+Program.Sub.Comments.End
+Program.Sub.ScreenSS.Start
+SS_Form1{{CAPTION::Track Workcenter
+SS_Form1.CTRL{{NAME::chkTrack\\TYPE::9\\CAPTION::Track Workcenter\\GROUP::-1\\BROWSER::0\\SIZE::1
+SS_Form1.CTRL{{NAME::cmdSave\\TYPE::5\\CAPTION::Save\\GROUP::-1\\BROWSER::0\\SIZE::1
+
+Program.Sub.ScreenSS.End
+
