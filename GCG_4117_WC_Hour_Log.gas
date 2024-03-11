@@ -1,0 +1,529 @@
+Program.Sub.ScreenSU.Start
+gui.SS_Form1..create
+gui.SS_Form1..caption("Enter Hour Meter Reading")
+gui.SS_Form1..size(4065,1785)
+gui.SS_Form1..minx(0)
+gui.SS_Form1..miny(0)
+gui.SS_Form1..position(0,0)
+gui.SS_Form1..event(unload,ss_form1_unload)
+gui.SS_Form1..alwaysontop(True)
+gui.SS_Form1..fontname("Arial")
+gui.SS_Form1..fontsize(8)
+gui.SS_Form1..forecolor(0)
+gui.SS_Form1..fontstyle(,,,,)
+gui.SS_Form1..BackColor(-2147483633)
+gui.SS_Form1..controlbox(True)
+gui.SS_Form1..maxbutton(False)
+gui.SS_Form1..minbutton(False)
+gui.SS_Form1..mousepointer(0)
+gui.SS_Form1..moveable(True)
+gui.SS_Form1..sizeable(False)
+gui.SS_Form1..ShowInTaskBar(True)
+gui.SS_Form1..titlebar(True)
+gui.SS_Form1.lblHrMet.create(label,"Hour Reading ",True,3570,200,1,100,135,True,0,Arial,8,-2147483633,0)
+gui.SS_Form1.lblHrMet.defaultvalue("")
+gui.SS_Form1.lblHrMet.controlgroup(0)
+gui.SS_Form1.txtHour.create(textbox,"",True,3480,330,0,100,335,True,0,Arial,8,16777215,1)
+gui.SS_Form1.txtHour.numericonly(1)
+gui.SS_Form1.txtHour.defaultvalue("")
+gui.SS_Form1.txtHour.controlgroup(0)
+gui.SS_Form1.cmdSave.create(button)
+gui.SS_Form1.cmdSave.caption("Save")
+gui.SS_Form1.cmdSave.visible(True)
+gui.SS_Form1.cmdSave.size(1000,360)
+gui.SS_Form1.cmdSave.zorder(0)
+gui.SS_Form1.cmdSave.position(100,750)
+gui.SS_Form1.cmdSave.enabled(True)
+gui.SS_Form1.cmdSave.fontname("Arial")
+gui.SS_Form1.cmdSave.fontsize(8)
+gui.SS_Form1.cmdSave.event(click,cmdsave_click)
+gui.SS_Form1.cmdSave.defaultvalue("")
+gui.SS_Form1.cmdSave.controlgroup(0)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.sWC.Declare(String)
+Variable.Global.iRunFlag.Declare(Long,0)
+Variable.Global.iSave.Declare(Long,0)
+Variable.Global.sLMO.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+'Quote 5485
+'code by TRT
+'Tycos Tool and Die
+
+V.Local.sError.Declare(String)
+
+'GAB screen that will let the user input the amount of hours to start with and end with.
+'start job post hook is 15935 run flag 1
+'start job post hook 15952 run flag 4
+'update job hook 15880 run flag 2
+'process job post hook 15890 run flag 3
+'v.Global.iRunFlag is to use to show us what mode we are running from.
+'iSave is used to show whether or not we had a n error with program, or if they tried to click x and not save
+'1 = success
+'0 = not saved but should of
+'2 = error somewhere and end it.
+F.ODBC.Connection!conX.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	F.Intrinsic.Control.Case(15935)
+		'start job post hook
+		'check to make sure flag is labor if not exit program
+		F.Intrinsic.Control.CallSub(Check_lmo,"Job",V.Passed.009990,"Suffix",V.Passed.009991,"Seq",V.Passed.009992)
+		F.Intrinsic.Control.If(V.global.sLMO,=,"L")
+			V.Global.iRunFlag.Set(1)
+			V.Global.sWC.Set(V.Passed.009004)
+			F.Intrinsic.Control.CallSub(Load)
+		F.Intrinsic.Control.Else
+			V.Global.iSave.Set(1)
+			F.Intrinsic.Control.CallSub(Ss_form1_unload)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Case(15952)
+		'check to make sure flag is labor if not exit program
+		F.Intrinsic.Control.CallSub(Check_lmo,"Job",V.Passed.009990,"Suffix",V.Passed.009991,"Seq",V.Passed.009992)
+		F.Intrinsic.Control.If(V.global.sLMO,=,"L")
+			V.Global.iRunFlag.Set(4)
+			V.Global.sWC.Set(V.Passed.009998)
+			F.Intrinsic.Control.CallSub(Load)
+		F.Intrinsic.Control.Else
+			V.Global.iSave.Set(1)
+			F.Intrinsic.Control.CallSub(Ss_form1_unload)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Case(15880)
+		'check to make sure flag is labor if not exit program
+		F.Intrinsic.Control.CallSub(Check_lmo,"Job",V.Passed.009990,"Suffix",V.Passed.009991,"Seq",V.Passed.009992)
+		F.Intrinsic.Control.If(V.global.sLMO,=,"L")
+			V.Global.iRunFlag.Set(2)
+			V.Global.sWC.Set(V.Passed.009996)
+			'update job hook
+			F.Intrinsic.Control.CallSub(Cmdsave_click)
+		F.Intrinsic.Control.Else
+			V.Global.iSave.Set(1)
+			F.Intrinsic.Control.CallSub(Ss_form1_unload)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Case(15890)
+		'check to make sure flag is labor if not exit program
+		F.Intrinsic.Control.CallSub(Check_lmo,"Job",V.Passed.009990,"Suffix",V.Passed.009991,"Seq",V.Passed.009992)
+		F.Intrinsic.Control.If(V.global.sLMO,=,"L")
+			V.Global.iRunFlag.Set(3)
+			V.Global.sWC.Set(V.Passed.009996)
+			'process job hook
+			F.Intrinsic.Control.CallSub(Load)
+		F.Intrinsic.Control.Else
+			V.Global.iSave.Set(1)
+			F.Intrinsic.Control.CallSub(Ss_form1_unload)
+		F.Intrinsic.Control.endif
+	F.Intrinsic.Control.CaseElse
+		V.Global.iSave.Set(1)
+		F.Intrinsic.Control.CallSub(Ss_form1_unload)
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Hour_Log.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	V.Global.iSave.Set(2)
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+program.sub.cmdsave_click.start
+F.Intrinsic.Control.SetErrorHandler("cmdsave_click_Err")
+F.Intrinsic.Control.ClearErrors
+
+'here is where we are going to see the end /start values.
+'they either have to enter an hour meter reading before the last one,
+'unless it's zero.
+V.Local.sError.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.fVal.Declare(Float)
+V.Local.iRecID.Declare(Long)
+V.Local.sJobSuffix.Declare(String)
+V.Local.f24Hr.Declare(Float)
+
+V.Local.fVal.Set(V.Screen.SS_Form1!txtHour.Text)
+'
+F.Intrinsic.Debug.Stop
+
+Gui.SS_Form1.cmdSave.Enabled(false)
+
+
+F.Intrinsic.Control.SelectCase(V.Global.iRunFlag)
+	F.Intrinsic.Control.Case(1)
+F.Intrinsic.Debug.Stop
+
+		F.Intrinsic.String.Build("Select * From GCG_4117_WC_Hour_Log Where Machine = '{0}' AND WC_HOURS_END <> '-1' Order By WC_Hours_End Desc",V.Global.sWC,V.Local.sQuery)
+		F.ODBC.Connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+		'means a record exists for this particular machine lets makes sure that th value they entered is
+		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFloat!WC_Hours_End)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less that previous reading.")
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.EndIf
+			V.Local.f24Hr.Set(V.ODBC.conX!rst.FieldValFloat!WC_Hours_End)
+			F.Intrinsic.Math.Sub(V.Local.fVal,V.Local.f24Hr,V.Local.f24Hr)
+			F.Intrinsic.Control.If(V.Local.f24Hr,>,24.00)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be more than 24 hours above the previous reading.")
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.EndIf
+'		F.Intrinsic.Control.EndIf
+'		F.ODBC.conX!rst.Close
+'		F.Intrinsic.String.Build("Select * From GCG_WC_Hour_Log Where Machine = '{0}' Order By WC_Hours_Start Desc",v.Global.sWC,v.Local.sQuery)
+'		F.ODBC.Connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+'		'means a record exists for this particular machine lets makes sure that th value they entered is
+'		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+'			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFloat!WC_Hours_Start)
+'				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less that previous reading.")
+'				F.ODBC.conX!rst.Close
+'				Gui.SS_Form1.txtHour.SetFocus
+'				Gui.SS_Form1.cmdSave.Enabled(True)
+'				F.Intrinsic.Control.ExitSub
+'			F.Intrinsic.Control.EndIf
+'			V.Local.f24Hr.Set(V.ODBC.conX!rst.FieldValFloat!WC_Hours_Start)
+'			F.Intrinsic.Math.Sub(V.Local.fVal,V.Local.f24Hr,V.Local.f24Hr)
+'			F.Intrinsic.Control.If(V.Local.f24Hr,>,24.00)
+'				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be more than 24 hours above the previous reading.")
+'				F.ODBC.conX!rst.Close
+'				Gui.SS_Form1.txtHour.SetFocus
+'				Gui.SS_Form1.cmdSave.Enabled(True)
+'				F.Intrinsic.Control.ExitSub
+'			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.EndIf
+		'THIS IS THE START JOBHOOK SO IT WILL ALWAYS BE A NEW ENTRY LINE.
+		f.ODBC.Connection!conx.GetID("GCG_4117_WC_Hour_Log","REC_ID",True,v.Local.iRecID)
+		F.ODBC.conX!rst.AddNew
+		F.ODBC.conX!rst.Set!Rec_ID(V.Local.iRecID)
+		F.ODBC.conX!rst.Set!Machine(V.Global.sWC)
+		F.ODBC.conX!rst.Set!Charge_Date(V.Ambient.Date)
+		F.ODBC.conX!rst.Set!Emp_Time_Start(V.Ambient.Now)
+		F.ODBC.conX!rst.Set!Emp_time_End(V.Ambient.Now)
+		F.ODBC.conX!rst.Set!WC_Hours_Start(V.Local.fVal)
+		F.ODBC.conX!rst.Set!WC_Hours_END(-1)
+		F.ODBC.conX!rst.Set!Operation_Seq(V.Passed.009002)
+		F.ODBC.conX!rst.Set!Employee(V.Passed.009993)
+		F.Intrinsic.String.Build("{0}{1}",V.Passed.009000.Trim,V.Passed.009001.Trim,V.Local.sJobSuffix)
+		F.ODBC.conX!rst.Set!Job_Suffix(V.Local.sJobSuffix)
+		F.ODBC.conX!rst.Update
+		F.ODBC.conX!rst.Close
+
+		'Updating  new Hour reading to GCG_WV_TRACK_MAINT table
+		F.Intrinsic.String.Build("Select * From GCG_4117_WC_Trck_Mnt Where Machine = '{0}'",V.Global.sWC,V.Local.sQuery)
+		F.ODBC.Connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+			F.ODBC.conX!rst.Set!Hr_Update(V.Local.fVal)
+		F.Intrinsic.Control.EndIf
+		F.ODBC.Conx!rst.Update
+		F.ODBC.conX!rst.Close
+
+		V.Global.iSave.Set(1)
+		F.Intrinsic.Control.CallSub(Ss_form1_unload)
+	F.Intrinsic.Control.Case(4)
+F.Intrinsic.Debug.Stop
+		F.Intrinsic.String.Build("Select * From GCG_4117_WC_Hour_Log Where Machine = '{0}' AND WC_HOURS_END <> '-1' Order By WC_Hours_End Desc",V.Global.sWC,V.Local.sQuery)
+		F.ODBC.Connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+		'means a record exists for this particular machine lets makes sure that th value they entered is
+		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFloat!WC_Hours_End)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less that previous reading.")
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.EndIf
+			V.Local.f24Hr.Set(V.ODBC.conX!rst.FieldValFloat!WC_Hours_End)
+			F.Intrinsic.Math.Sub(V.Local.fVal,V.Local.f24Hr,V.Local.f24Hr)
+			F.Intrinsic.Control.If(V.Local.f24Hr,>,24.00)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be more than 24 hours above the previous reading.")
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.EndIf
+'		F.ODBC.conX!rst.Close
+'		F.Intrinsic.String.Build("Select * From GCG_WC_Hour_Log Where Machine = '{0}' Order By WC_Hours_Start Desc",v.Global.sWC,v.Local.sQuery)
+'		F.ODBC.Connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+'		'means a record exists for this particular machine lets makes sure that th value they entered is
+'		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+'			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFloat!WC_Hours_Start)
+'				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less that previous reading.")
+'				F.ODBC.conX!rst.Close
+'				Gui.SS_Form1.txtHour.SetFocus
+'				Gui.SS_Form1.cmdSave.Enabled(True)
+'				F.Intrinsic.Control.ExitSub
+'			F.Intrinsic.Control.EndIf
+'			V.Local.f24Hr.Set(V.ODBC.conX!rst.FieldValFloat!WC_Hours_Start)
+'			F.Intrinsic.Math.Sub(V.Local.fVal,V.Local.f24Hr,V.Local.f24Hr)
+'			F.Intrinsic.Control.If(V.Local.f24Hr,>,24.00)
+'				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be more than 24 hours above the previous reading.")
+'				F.ODBC.conX!rst.Close
+'				Gui.SS_Form1.txtHour.SetFocus
+'				Gui.SS_Form1.cmdSave.Enabled(True)
+'				F.Intrinsic.Control.ExitSub
+'			F.Intrinsic.Control.EndIf
+'		F.Intrinsic.Control.EndIf
+		'THIS IS THE START JOBHOOK SO IT WILL ALWAYS BE A NEW ENTRY LINE.
+		f.ODBC.Connection!conx.GetID("GCG_4117_WC_Hour_Log","REC_ID",True,v.Local.iRecID)
+		F.ODBC.conX!rst.AddNew
+		F.ODBC.conX!rst.Set!Rec_ID(V.Local.iRecID)
+		F.ODBC.conX!rst.Set!Machine(V.Global.sWC)
+		F.ODBC.conX!rst.Set!Charge_Date(V.Ambient.Date)
+		F.ODBC.conX!rst.Set!Emp_Time_Start(V.Ambient.Now)
+		F.ODBC.conX!rst.Set!Emp_time_End(V.Ambient.Now)
+		F.ODBC.conX!rst.Set!WC_Hours_Start(V.Local.fVal)
+		F.ODBC.conX!rst.Set!WC_Hours_END(-1)
+		F.ODBC.conX!rst.Set!Operation_Seq(V.Passed.009992)
+		F.ODBC.conX!rst.Set!Employee(V.Passed.009993)
+		F.Intrinsic.String.Build("{0}{1}",V.Passed.009990.Trim,V.Passed.009991.Trim,V.Local.sJobSuffix)
+		F.ODBC.conX!rst.Set!Job_Suffix(V.Local.sJobSuffix)
+		F.ODBC.conX!rst.Update
+		F.ODBC.conX!rst.Close
+		V.Global.iSave.Set(1)
+		F.Intrinsic.Control.CallSub(Ss_form1_unload)
+	F.Intrinsic.Control.Case(2)
+		V.Global.iSave.Set(1)
+'F.Intrinsic.Debug.Stop
+'		F.intrinsic.String.Build("{0}{1}",V.Passed.009990.Trim,V.Passed.009991.Trim,V.Local.sJobSuffix)
+'
+'		'coming from the job process hook so we need to grab the start time PASSED FROM JOB CORE AND UPDATE OUR EXISTING RECORD
+'		F.Intrinsic.String.Build("Select Emp_Time_Start From GCG_WC_Hour_Log Where Job_Suffix = '{0}' And Operation_Seq = '{1}' And Charge_Date ='{2}' And Employee = '{3}' And Machine = '{4}' ",V.Local.sJobSuffix,V.pASSED.009992,V.Ambient.Date.PervasiveDate,V.Passed.009993,V.Global.sWC,V.Local.sQuery)
+'		F.ODBC.Connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+'		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+'			F.ODBC.conX!rst.Set!Emp_Time_Start(V.Passed.009003)
+'			F.ODBC.conX!rst.Update
+'		F.Intrinsic.Control.EndIf
+'		F.ODBC.conX!rst.Close
+'		V.Global.iSave.Set(1)
+'		F.Intrinsic.Control.CallSub(Ss_form1_unload)
+	F.Intrinsic.Control.Case(3)
+'F.Intrinsic.Debug.InvokeDebugger
+'F.Intrinsic.Debug.Stop
+		F.Intrinsic.String.Build("{0}{1}",V.Passed.009990.Trim,V.Passed.009991.Trim,V.Local.sJobSuffix)
+		F.Intrinsic.String.Build("Select * From GCG_4117_WC_Hour_Log Where Machine = '{0}' Order By WC_Hours_Start Desc",V.Global.sWC,V.Local.sQuery)
+'		F.Intrinsic.String.Build("Select Emp_Time_Start Where Job_Suffix = '{0}' And Operation_Seq = '{2}' Charge_Date ='{1} And Employee = '{3}' And Machine = '{4}' ",V.Local.sJobSuffix,V.Ambient.Date,V.Passed.009002,V.Passed.009996,V.Local.sQuery)
+		F.ODBC.Connection!conX.OpenLocalRecordsetRO("rst",V.Local.sQuery)
+		'means a record exists for this particular machine lets makes sure that th value they entered is
+		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+			V.Local.f24Hr.Set(V.ODBC.conX!rst.FieldValFloat!WC_Hours_Start)
+			F.Intrinsic.Math.Sub(V.Local.fVal,V.Local.f24Hr,V.Local.f24Hr)
+			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFLoat!WC_Hours_Start)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less than previous reading.")
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.ElseIf(V.Local.f24Hr,>,24.00)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be more than 24 hours above the previous reading.")
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.EndIf
+'		F.ODBC.conX!rst.Close
+'		F.Intrinsic.String.Build("Select * From GCG_WC_Hour_Log Where Machine = '{0}' AND wc_hOURS_END <> '-1' Order By WC_Hours_End Desc",v.Global.sWC,v.Local.sQuery)
+''		F.Intrinsic.String.Build("Select Emp_Time_Start Where Job_Suffix = '{0}' And Operation_Seq = '{2}' Charge_Date ='{1} And Employee = '{3}' And Machine = '{4}' ",V.Local.sJobSuffix,V.Ambient.Date,V.Passed.009002,V.Passed.009996,V.Local.sQuery)
+'		F.ODBC.Connection!conX.OpenLocalRecordsetRO("rst",V.Local.sQuery)
+'		'means a record exists for this particular machine lets makes sure that th value they entered is
+'		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+'			V.Local.f24Hr.Set(V.ODBC.conX!rst.FieldValFloat!WC_Hours_End)
+'			F.Intrinsic.Math.Sub(V.Local.fVal,V.Local.f24Hr,V.Local.f24Hr)
+'			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFLoat!WC_Hours_End)
+'				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less than previous reading.")
+'				F.ODBC.conX!rst.Close
+'				Gui.SS_Form1.txtHour.SetFocus
+'				Gui.SS_Form1.cmdSave.Enabled(True)
+'				F.Intrinsic.Control.ExitSub
+'			F.Intrinsic.Control.ElseIf(V.Local.f24Hr,>,24.00)
+'				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be more than 24 hours above the previous reading.")
+'				F.ODBC.conX!rst.Close
+'				Gui.SS_Form1.txtHour.SetFocus
+'				Gui.SS_Form1.cmdSave.Enabled(True)
+'				F.Intrinsic.Control.ExitSub
+'			F.Intrinsic.Control.EndIf
+'		F.Intrinsic.Control.EndIf
+		F.ODBC.conX!rst.Close
+		F.Intrinsic.String.Build("Select Emp_Time_End,WC_Hours_End,Wc_Hours_Start From GCG_4117_WC_Hour_Log Where Job_Suffix = '{0}' And Operation_Seq = '{2}' And Charge_Date ='{1}' And Employee = '{3}' And Machine = '{4}' AND wc_hOURS_END = '-1' Order By Emp_Time_End Desc",V.Local.sJobSuffix,V.Ambient.Date.PervasiveDate,V.Passed.009992,V.Passed.009993,v.Global.sWC,V.Local.sQuery)
+		F.ODBC.connection!conX.OpenLocalRecordsetRW("rst",V.Local.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+			'make sure our fval is greater than our start time
+			F.Intrinsic.Control.If(V.Local.fVal,<,V.ODBC.conX!rst.FieldValFloat!WC_Hours_Start)
+				F.Intrinsic.UI.Msgbox("Invalid Entry. Value can not be less than previous reading.",64)
+				F.ODBC.conX!rst.Close
+				Gui.SS_Form1.txtHour.SetFocus
+				Gui.SS_Form1.cmdSave.Enabled(True)
+				F.Intrinsic.Control.ExitSub
+			F.Intrinsic.Control.Else
+				F.ODBC.conX!rst.Set!Emp_time_End(V.Ambient.Now)
+				F.ODBC.conX!rst.Set!WC_Hours_END(V.local.fVal)
+				F.ODBC.conX!rst.Update
+				F.ODBC.conX!rst.Close
+				V.Global.iSave.Set(1)
+				F.Intrinsic.Control.CallSub(Ss_form1_unload)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.Else
+			F.Intrinsic.UI.Msgbox("Hour Informaiton for machine and job can not be found.","Record Not Found!",64)
+			V.Global.iSave.Set(2)
+			F.Intrinsic.Control.CallSub(Ss_form1_unload)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.CaseElse
+		F.Intrinsic.UI.Msgbox("An error has occured with the GUI WC Hour Tracker. Please contact Global Shop.")
+		V.Global.iSave.Set(2)
+		F.Intrinsic.Control.CallSub(Ss_form1_unload)
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdsave_click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Hour_Log.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	V.Global.iSave.Set(2)
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+
+
+program.sub.cmdsave_click.end
+
+program.sub.ss_form1_unload.start
+F.Intrinsic.Control.SetErrorHandler("ss_form1_unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+'save check they can't exit and not save if they don't want to
+'global iSave
+'0 = not saved
+'1 = successfull save
+'2 = error and we should end
+F.Intrinsic.Control.if(V.Global.iSave,=,0)
+	F.Intrinsic.UI.Msgbox("Hour meter reading must be saved!")
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.Else
+	F.ODBC.Connection!conX.Close
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+
+F.Intrinsic.Control.Label("ss_form1_unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Hour_Log.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.end
+Function.Intrinsic.Control.EndIf
+
+
+program.sub.ss_form1_unload.end
+
+Program.Sub.Load.Start
+F.Intrinsic.Control.SetErrorHandler("Load_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sQuery.Declare(String)
+V.Local.sMess.Declare(String)
+
+'Load our label caption whether or not we do the start of ending hour meter reading for the information,
+
+'but first make sure we track this workcenter
+F.Intrinsic.String.Build("Select Flag_Track From GCG_4117_WC_Trck_Mnt Where Machine = '{0}'",V.Global.sWC,V.Local.sQuery)
+F.ODBC.Connection!conX.ExecuteAndReturn(V.Local.sQuery,V.Local.sRet)
+F.Intrinsic.Control.If(V.Local.sRet.Trim,<>,"True")
+	V.Global.iSave.Set(1)
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.SelectCase(V.Global.iRunFlag)
+F.Intrinsic.Control.Case(2)
+	F.Intrinsic.Control.CallSub(Cmdsave_click)
+F.Intrinsic.Control.CaseElse
+	F.Intrinsic.String.Build("Enter Hour Meter reading for Machine: {0}",V.Global.sWC,V.Local.sMess)
+
+	'Find hour reading entered from Maint prm.
+	F.Intrinsic.String.Build("Select Hr_Update From GCG_4117_WC_Trck_Mnt Where Machine = '{0}'",V.Global.sWC,V.Local.sQuery)
+	F.ODBC.Connection!conX.OpenLocalRecordsetRO("rst",V.Local.sQuery)
+	F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+		Gui.SS_Form1.txtHour.Text(V.ODBC.conX!rst.FieldValTrim!HR_UPDATE)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.conX!rst.Close
+
+	Gui.SS_Form1.lblHrMet.Caption(V.Local.sMess)
+	Gui.SS_Form1..Show
+	Gui.SS_Form1.txtHour.SetFocus
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Load_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Hour_Log.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	V.Global.iSave.Set(2)
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Load.End
+
+Program.Sub.Check_LMO.Start
+F.Intrinsic.Control.SetErrorHandler("Check_LMO_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sQuery.Declare(String)
+V.local.sJob.Declare(String)
+V.local.sSuffix.Declare(String)
+V.Local.sSeq.Declare(String)
+
+V.Local.sJob.Set(V.Args.Job)
+V.local.sSuffix.Set(V.Args.Suffix)
+V.Local.sSeq.Set(V.Args.Seq)
+
+F.Intrinsic.String.Build("Select LMO From V_Job_Operations Where JOb = '{0}' And Suffix = '{1}' And Seq = '{2}' And LMO = 'L'",V.Local.sJob,V.Local.sSuffix,V.Local.sSeq,V.Local.sQuery)
+F.ODBC.Connection!conX.OpenLocalRecordsetRO("rst",V.Local.sQuery)
+F.Intrinsic.Control.If(V.ODBC.conX!rst.EOF,<>,True)
+	V.Global.sLMO.Set("L")
+F.Intrinsic.Control.endif
+
+F.ODBC.conX!rst.Close
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Check_LMO_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4117_WC_Hour_Log.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	V.Global.iSave.Set(1)
+	F.Intrinsic.Control.CallSub(Ss_form1_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Check_LMO.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_4117_WC_Hour_Log$}$RLK$}$6/1/2016
+${$1$}$$}$$}$2$}$15952$}$Post-Start Job Hook$}$6/1/2016 3:53:44 PM$}$(Program: OLG002; Screen: OLS007)
+
+${$1$}$$}$$}$1$}$15890$}$OLS003-PB-PROCESS-POST-HOOK (On-line GUI)$}$6/1/2016 3:53:27 PM$}$(Program: OLG002; Screen: OLS003)
+
+${$1$}$$}$$}$0$}$15935$}$OLS005-PB-START-JOB-POST-HOOK(GUI START JOB BUTTON)$}$6/1/2016 3:53:04 PM$}$(Program: OLG002; Screen: OLS005)
+
+Program.Sub.Comments.End
+
